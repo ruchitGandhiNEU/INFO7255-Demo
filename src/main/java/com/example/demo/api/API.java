@@ -5,11 +5,12 @@
  */
 package com.example.demo.api;
 
+import javax.servlet.http.HttpServletResponse;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseBody;
-import redis.clients.jedis.Jedis;
 
 /**
  *
@@ -19,10 +20,21 @@ public abstract class API {
     
     protected final String createdMessage = "object Saved!";
     protected final String objectNotFoundMessage = "No such Object found for ObjectType/ObjectId.";
+    protected final String alreadyExistsMessage = "Object Already Exists!";
     
+    /**
+     *
+     * @param body
+     * @return
+     */
     @RequestMapping("/test")
     @ResponseBody
-    public ResponseEntity testMessage() {
+    public ResponseEntity testMessage(HttpServletResponse response) {
+        try{
+            System.out.println(response.getStatus());
+        }catch(Exception e){
+            return internalServerError(e.getMessage());
+        }
         return ok("{ message : 'Welcolme to INFO 7255'}");
     }
     
@@ -73,7 +85,7 @@ public abstract class API {
      * Returns an error response with a message in the JSON body.
      */
     protected ResponseEntity error(HttpStatus status, String message) {
-        return ResponseEntity.status(status).body("{ message : '" + message + "' }");
+        return ResponseEntity.status(status).body("{ 'Message' : '" + message + "' }");
     }
 
     /**
@@ -102,6 +114,13 @@ public abstract class API {
      */
     protected ResponseEntity internalServerError(String message) {
         return error(HttpStatus.INTERNAL_SERVER_ERROR, message);
+    }
+    
+      /**
+     * Returns a 409 response with message in the JSON body.
+     */
+    protected ResponseEntity conflict(String message) {
+        return error(HttpStatus.CONFLICT, message);
     }
 
 }

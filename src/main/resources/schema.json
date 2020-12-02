@@ -38,10 +38,7 @@
             "type": "object",
             "properties": {
               "_org": {
-                "type": "string",
-                "enum": [
-                  "example.com"
-                ]
+                "type": "string"
               },
               "objectId": {
                 "type": "string"
@@ -67,16 +64,10 @@
             "type": "object",
             "properties": {
               "deductible": {
-                "type": "integer",
-                "enum": [
-                  10
-                ]
+                "type": "integer"
               },
               "_org": {
-                "type": "string",
-                "enum": [
-                  "example.com"
-                ]
+                "type": "string"
               },
               "copay": {
                 "type": "integer"
@@ -100,10 +91,7 @@
             ]
           },
           "_org": {
-            "type": "string",
-            "enum": [
-              "example.com"
-            ]
+            "type": "string"
           },
           "objectId": {
             "type": "string"
