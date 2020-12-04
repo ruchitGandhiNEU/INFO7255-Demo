@@ -6,6 +6,7 @@
 package com.example.demo.service;
 
 
+import com.example.demo.DemoApplication;
 import org.json.JSONArray;
 import org.json.JSONObject;
 import redis.clients.jedis.Jedis;
@@ -13,8 +14,12 @@ import redis.clients.jedis.JedisPool;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Iterator;
+import java.util.Map;
 import java.util.Set;
+import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 /**
@@ -27,6 +32,11 @@ public class JsonService {
     
     @Autowired(required = false)
     private JedisPool jedisPool;
+    
+    @Autowired
+    private RabbitTemplate template;
+    
+    public static String ELASTIC_URL = "http://localhost:9200";
 
     private JedisPool getJedisPool() {
         if (this.jedisPool == null) {
@@ -308,6 +318,69 @@ public class JsonService {
 
         return -1;
     }
+    
+    
+    
+    public void sendEachObject(JSONObject object, String mainObjectType, String mainObjectID, String thiskey, String joinName,Map<String, Set<String>> relationMap) {
+         
+         JSONObject thisObjectOnly = new JSONObject();
+        
+//        System.out.println(" sendEachObject() CALLED!!!!!!!!!!! -  | mainObjectType : "+mainObjectType+" | mainObjectID : "+mainObjectID);
+        System.out.println(" =================================================XXXXXXX | "+thiskey+" | START  XXXXXXXXX=================================================  ");
+
+        for (String key : object.keySet()) {
+            Object value = object.get(key);
+            
+            
+            if (value instanceof JSONObject) {
+                
+                sendEachObject((JSONObject) value, mainObjectType, mainObjectID, key,joinName,relationMap);
+                
+            } else if (value instanceof JSONArray) {
+
+                 for (Object object1 : (JSONArray) value) {
+                     sendEachObject((JSONObject) object1, mainObjectType, mainObjectID, key, joinName,relationMap);
+                 }
+             
+            } else {
+                 thisObjectOnly.put(key, value);
+            }
+            
+         }
+
+         System.out.println(" --------------------- ------------------- " + thiskey + " -----------------------");
+
+         if (!mainObjectType.equals(thisObjectOnly.get("objectType"))) {
+             JSONObject childJoin = new JSONObject();
+             childJoin.put("name", thisObjectOnly.getString("objectType"));
+             childJoin.put("parent", mainObjectID);
+             thisObjectOnly.put(joinName, childJoin);
+             
+             Set<String> rSet = relationMap.getOrDefault(mainObjectType, new HashSet<String>());
+             rSet.add(thisObjectOnly.getString("objectType"));
+             relationMap.put(mainObjectType, rSet);
+             
+         }
+
+         System.out.println(thisObjectOnly.toString(6));
+         
+         // index object
+        Map<String, String> actionMap = new HashMap<>();
+        actionMap.put("operation", "SAVE");
+        actionMap.put("uri", ELASTIC_URL);
+        actionMap.put("index", "plan");
+        actionMap.put("body", thisObjectOnly.toString());
+        actionMap.put("mainObjectId", mainObjectID);
+
+        System.out.println("Sending message: " + actionMap);
+
+        template.convertAndSend(DemoApplication.MESSAGE_QUEUE, actionMap);
+            
+         System.out.println(" --------------------- ------------------- -----------------------");
+
+
+        System.out.println(" =================================================XXXXXXXX END XXXXXXXX=================================================  ");
+     }
     
     
 }

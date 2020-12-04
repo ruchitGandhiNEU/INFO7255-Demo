@@ -17,6 +17,7 @@ import java.io.StringWriter;
 import java.io.Writer;
 import java.security.NoSuchAlgorithmException;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
 import javax.json.Json;
@@ -61,6 +62,8 @@ public class RestController extends API {
 
     @Autowired(required = false)
     JsonService jsonService;
+    
+    private static String INDEX_NAME = "plan";
 
     /**
      *
@@ -84,6 +87,10 @@ public class RestController extends API {
             }
 
             String key = this.jsonService.savePlan(jsonObject, objType);
+            
+            Map<String, Set<String>> relationMap = new HashMap<>();
+            jsonService.sendEachObject(jsonObject, objType, objID, objType ,objType+"_join", relationMap);
+            
             JSONObject plan = this.jsonService.getPlan(key);
             if (plan == null) {
                 throw new ObjectNotFoundException("Unable to get plan");
