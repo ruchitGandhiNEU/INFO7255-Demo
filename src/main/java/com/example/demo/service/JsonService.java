@@ -321,53 +321,80 @@ public class JsonService {
     
     
     
-    public void sendEachObject(JSONObject object, String mainObjectType, String mainObjectID, String thiskey, String joinName,Map<String, Set<String>> relationMap) {
-         
-         JSONObject thisObjectOnly = new JSONObject();
+    public void sendEachObject(JSONObject object, String mainObjectType, String mainObjectID, String thiskey, String joinName, Set<String> nameSet, String parentJoinName, String parentId) {
         
-        System.out.println(" sendEachObject() CALLED!!!!!!!!!!! -  | mainObjectType : "+object.getString("objectType")+" | mainObjectID : "+object.getString("objectId"));
-        System.out.println(" =================================================XXXXXXX | "+thiskey+" | START  XXXXXXXXX=================================================  ");
+        
+//        String thisJoinName = object.getString("objectType") + "_join";
+        String thisObjectId = object.getString("objectId");
+        String myDeclaredName = object.getString("objectType");
+        if (nameSet.contains(object.getString("objectType"))) {
+            myDeclaredName = myDeclaredName + "_copy";
+        }
+        nameSet.add(myDeclaredName);
+
+        JSONObject thisObjectOnly = new JSONObject();
+
+        System.out.println(" sendEachObject() CALLED!!!!!!!!!!! -  | mainObjectType : " + object.getString("objectType") + " | mainObjectID : " + object.getString("objectId"));
+        System.out.println(" =================================================XXXXXXX | " + thiskey + " | START  XXXXXXXXX=================================================  ");
+
+        boolean iHaveChild = false;
 
         for (String key : object.keySet()) {
             Object value = object.get(key);
-            
-            
+
             if (value instanceof JSONObject) {
-                
-                System.out.println("Next Iteration Sending "+ object.getString("objectType")+" | ID : "+object.getString("objectId"));
-                sendEachObject((JSONObject) value, mainObjectType, mainObjectID, key,joinName,relationMap);
-                
+
+                iHaveChild = true;
+
+                System.out.println("Next Iteration Sending " + object.getString("objectType") + " | ID : " + object.getString("objectId"));
+                Set<String> cloneNameSet = new HashSet<>();
+                cloneNameSet.addAll(nameSet);
+                sendEachObject((JSONObject) value, mainObjectType, mainObjectID, key, joinName, nameSet, joinName, thisObjectId);
+
             } else if (value instanceof JSONArray) {
 
-                 for (Object object1 : (JSONArray) value) {
-                     sendEachObject((JSONObject) object1, mainObjectType, mainObjectID, key, joinName,relationMap);
-                 }
-             
+                for (Object object1 : (JSONArray) value) {
+                    iHaveChild = true;
+
+                    Set<String> cloneNameSet = new HashSet<>();
+                    cloneNameSet.addAll(nameSet);
+                    sendEachObject((JSONObject) object1, mainObjectType, mainObjectID, key, joinName, cloneNameSet, joinName, thisObjectId);
+                }
+
             } else {
-                 thisObjectOnly.put(key, value);
+                thisObjectOnly.put(key, value);
             }
-            
-         }
 
-         System.out.println(" --------------------- ------------------- " + thiskey + " -----------------------");
+        }
 
-         if (!mainObjectType.equals(thisObjectOnly.get("objectType"))) {
-             JSONObject childJoin = new JSONObject();
-             childJoin.put("name", thisObjectOnly.getString("objectType"));
-             childJoin.put("parent", mainObjectID);
-             thisObjectOnly.put(joinName, childJoin);
-             
-             Set<String> rSet = relationMap.getOrDefault(mainObjectType, new HashSet<String>());
-             rSet.add(thisObjectOnly.getString("objectType"));
-             relationMap.put(mainObjectType, rSet);
-             
-         }else{
-             thisObjectOnly.put(joinName,thisObjectOnly.get("objectType"));
-         }
+        System.out.println(" --------------------- ------------------- " + thiskey + " -----------------------");
+        System.out.println(" I Have A Child : " + iHaveChild);
+        System.out.println(" I Have to Declare myself a Child : " + !(parentJoinName == null && parentId == null));
 
-         System.out.println(thisObjectOnly.toString(6));
-         
-         // index object
+        // Adding Myself as a parent
+        if (iHaveChild) {
+            thisObjectOnly.put(joinName, myDeclaredName);
+        }
+
+        //USING parent's information to declare myself a child
+        if (!(parentJoinName == null && parentId == null)) {
+            System.out.println(" -- -- -- ");
+            System.out.println(" Declaring Myself a Child whith parent join name : " + parentJoinName);
+            JSONObject childJoin = new JSONObject();
+            childJoin.put("name", myDeclaredName);
+            childJoin.put("parent", parentId);
+            thisObjectOnly.put(parentJoinName, childJoin);
+            System.out.println(childJoin.toString(6));
+            System.out.println(" -- -- -- ");
+
+        }
+
+//        Set<String> rSet = relationMap.getOrDefault(mainObjectType, new HashSet<String>());
+//        rSet.add(thisObjectOnly.getString("objectType"));
+//        relationMap.put(mainObjectType, rSet);
+        System.out.println(thisObjectOnly.toString(6));
+
+        // index object
         Map<String, String> actionMap = new HashMap<>();
         actionMap.put("operation", "SAVE");
         actionMap.put("uri", ELASTIC_URL);
@@ -378,12 +405,10 @@ public class JsonService {
         System.out.println("Sending message: " + actionMap);
 
         template.convertAndSend(DemoApplication.MESSAGE_QUEUE, actionMap);
-            
-         System.out.println(" --------------------- ------------------- -----------------------");
-
+        System.out.println(" --------------------- ------------------- -----------------------");
 
         System.out.println(" =================================================XXXXXXXX END XXXXXXXX=================================================  ");
-     }
+    }
     
     
 }

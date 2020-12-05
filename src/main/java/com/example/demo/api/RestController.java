@@ -18,6 +18,7 @@ import java.io.Writer;
 import java.security.NoSuchAlgorithmException;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 import javax.json.Json;
@@ -86,13 +87,14 @@ public class RestController extends API {
             String objID = jsonObject.getString("objectId");
 
             if (cache.get(getKey(objType, objID)) != null) {
+                System.out.println("Already Exist!");
                 throw new AppException(alreadyExistsMessage);
             }
 
             String key = this.jsonService.savePlan(jsonObject, objType);
             
-            Map<String, Set<String>> relationMap = new HashMap<>();
-            jsonService.sendEachObject(cloneJsonObject, objType, objID, objType ,objType+"_join", relationMap);
+            Set<String> nameSet = new HashSet<>();
+            jsonService.sendEachObject(cloneJsonObject, objType, objID, objType ,objType+"_join", nameSet, null, null);
             
             JSONObject plan = this.jsonService.getPlan(key);
             if (plan == null) {

@@ -21,6 +21,7 @@ import org.apache.http.entity.ContentType;
 import org.apache.http.entity.StringEntity;
 import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClients;
+import org.apache.http.util.EntityUtils;
 import org.json.JSONArray;
 import org.json.JSONObject;
 import org.springframework.stereotype.Component;
@@ -69,7 +70,10 @@ public class QueueListenerService {
         int result = 0;
         try (CloseableHttpClient httpClient = HttpClients.createDefault();
                 CloseableHttpResponse response = httpClient.execute(request)) {
-            System.out.println("ElasticSearch Response: " + response.toString());
+            if(response.getStatusLine().getStatusCode() > 299){
+                System.out.println("ElasticSearch Response: " + response.getStatusLine().toString());
+            }
+            System.out.println("ElasticSearch Response: " + EntityUtils.toString(response.getEntity()));
             result = response.getStatusLine().getStatusCode();
         } catch (ClientProtocolException e) {
             e.printStackTrace();
@@ -202,7 +206,7 @@ public class QueueListenerService {
             e.printStackTrace();
         }
 
-        this.executeRequest(request);
+        int executeRequest = this.executeRequest(request);
     }
 
     private void deleteIndex(String uri, String indexName, JSONObject objectBody) {
