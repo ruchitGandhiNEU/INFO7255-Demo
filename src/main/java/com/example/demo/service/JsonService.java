@@ -6,6 +6,7 @@
 package com.example.demo.service;
 
 
+import com.example.demo.DemoApplication;
 import org.json.JSONArray;
 import org.json.JSONObject;
 import redis.clients.jedis.Jedis;
@@ -13,8 +14,12 @@ import redis.clients.jedis.JedisPool;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Iterator;
+import java.util.Map;
 import java.util.Set;
+import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 /**
@@ -27,6 +32,11 @@ public class JsonService {
     
     @Autowired(required = false)
     private JedisPool jedisPool;
+    
+    @Autowired
+    private RabbitTemplate template;
+    
+    public static String ELASTIC_URL = "http://localhost:9200";
 
     private JedisPool getJedisPool() {
         if (this.jedisPool == null) {
@@ -165,6 +175,18 @@ public class JsonService {
                 jedis.close();
                 return false;
             }
+            
+            String[] split = planKey.split("_");
+        Map<String, String> actionMap = new HashMap<>();
+        actionMap.put("operation", "DELETE");
+        actionMap.put("uri", ELASTIC_URL);
+        actionMap.put("index", "plan");
+        actionMap.put("body", split[1]);
+
+        System.out.println("Sending message: " + actionMap);
+
+        template.convertAndSend(DemoApplication.MESSAGE_QUEUE, actionMap);
+            
             jedis.close();
         }
 
@@ -185,6 +207,18 @@ public class JsonService {
                 //deletion failed
                 return false;
             }
+            
+            String[] split_2 = partObjKey.split("_");
+            Map<String, String> actionMap = new HashMap<>();
+            actionMap.put("operation", "DELETE");
+            actionMap.put("uri", ELASTIC_URL);
+            actionMap.put("index", "plan");
+            actionMap.put("body", split_2[1]);
+
+            System.out.println("Sending message: " + actionMap);
+
+            template.convertAndSend(DemoApplication.MESSAGE_QUEUE, actionMap);
+            
             jedis.close();
             if (partObjectDBKey == null || partObjectDBKey.isEmpty()) {
                 continue;
@@ -307,6 +341,106 @@ public class JsonService {
         }
 
         return -1;
+    }
+    
+    
+    
+    public void sendEachObject(JSONObject object, String mainObjectType, String mainObjectID, String thiskey, String joinName, Set<String> nameSet, String parentJoinName, String parentId, String operation_type) {
+        
+        if(operation_type==null || operation_type.equals("SAVE")){
+            operation_type = "SAVE";
+        }else if(operation_type.equals("DELETE")){
+            System.out.println("DELETING OBJ : "+object.getString("objectType") + " | ID : " + object.getString("objectId"));
+        }else{
+        return;
+        }
+        
+//        String thisJoinName = object.getString("objectType") + "_join";
+        String thisObjectId = object.getString("objectId");
+        String myDeclaredName = object.getString("objectType");
+        if (nameSet.contains(object.getString("objectType"))) {
+            myDeclaredName = myDeclaredName + "_copy";
+        }
+        nameSet.add(myDeclaredName);
+
+        JSONObject thisObjectOnly = new JSONObject();
+
+        System.out.println(" sendEachObject() CALLED!!!!!!!!!!! -  | mainObjectType : " + object.getString("objectType") + " | mainObjectID : " + object.getString("objectId"));
+        System.out.println(" =================================================XXXXXXX | " + thiskey + " | START  XXXXXXXXX=================================================  ");
+
+        boolean iHaveChild = false;
+
+        for (String key : object.keySet()) {
+            Object value = object.get(key);
+
+            if (value instanceof JSONObject) {
+
+                iHaveChild = true;
+
+                System.out.println("Next Iteration Sending " + object.getString("objectType") + " | ID : " + object.getString("objectId"));
+                Set<String> cloneNameSet = new HashSet<>();
+                cloneNameSet.addAll(nameSet);
+                sendEachObject((JSONObject) value, mainObjectType, mainObjectID, key, joinName, nameSet, joinName, thisObjectId,operation_type);
+
+            } else if (value instanceof JSONArray) {
+
+                for (Object object1 : (JSONArray) value) {
+                    iHaveChild = true;
+
+                    Set<String> cloneNameSet = new HashSet<>();
+                    cloneNameSet.addAll(nameSet);
+                    sendEachObject((JSONObject) object1, mainObjectType, mainObjectID, key, joinName, cloneNameSet, joinName, thisObjectId,operation_type);
+                }
+
+            } else {
+                thisObjectOnly.put(key, value);
+            }
+
+        }
+
+        System.out.println(" --------------------- ------------------- " + thiskey + " -----------------------");
+        System.out.println(" I Have A Child : " + iHaveChild);
+        System.out.println(" I Have to Declare myself a Child : " + !(parentJoinName == null && parentId == null));
+
+        // Adding Myself as a parent
+        if (iHaveChild) {
+            JSONObject parentDeclareJson = new JSONObject();
+            parentDeclareJson.put("name", myDeclaredName);
+            thisObjectOnly.put(joinName, parentDeclareJson);
+        }
+
+        //USING parent's information to declare myself a child
+        if (!(parentJoinName == null && parentId == null)) {
+            System.out.println(" -- -- -- ");
+            System.out.println(" Declaring Myself a Child whith parent join name : " + parentJoinName);
+            JSONObject childJoin = new JSONObject();
+            childJoin.put("name", myDeclaredName);
+            childJoin.put("parent", parentId);
+            thisObjectOnly.put(parentJoinName, childJoin);
+            System.out.println(childJoin.toString(6));
+            System.out.println(" -- -- -- ");
+
+        }
+
+//        Set<String> rSet = relationMap.getOrDefault(mainObjectType, new HashSet<String>());
+//        rSet.add(thisObjectOnly.getString("objectType"));
+//        relationMap.put(mainObjectType, rSet);
+        System.out.println(thisObjectOnly.toString(6));
+
+        // index object
+        Map<String, String> actionMap = new HashMap<>();
+        actionMap.put("operation", operation_type);
+        actionMap.put("uri", ELASTIC_URL);
+        actionMap.put("index", "plan");
+        actionMap.put("body", thisObjectOnly.toString());
+        actionMap.put("mainObjectId", mainObjectID);
+
+        System.out.println("Sending message: " + actionMap);
+
+        template.convertAndSend(DemoApplication.MESSAGE_QUEUE, actionMap);
+        System.out.println(" --------------------- ------------------- -----------------------");
+
+        System.out.println(" =================================================XXXXXXXX END XXXXXXXX=================================================  ");
     }
     
     
