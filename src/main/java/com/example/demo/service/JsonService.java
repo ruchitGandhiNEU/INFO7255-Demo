@@ -325,7 +325,7 @@ public class JsonService {
          
          JSONObject thisObjectOnly = new JSONObject();
         
-//        System.out.println(" sendEachObject() CALLED!!!!!!!!!!! -  | mainObjectType : "+mainObjectType+" | mainObjectID : "+mainObjectID);
+        System.out.println(" sendEachObject() CALLED!!!!!!!!!!! -  | mainObjectType : "+object.getString("objectType")+" | mainObjectID : "+object.getString("objectId"));
         System.out.println(" =================================================XXXXXXX | "+thiskey+" | START  XXXXXXXXX=================================================  ");
 
         for (String key : object.keySet()) {
@@ -334,6 +334,7 @@ public class JsonService {
             
             if (value instanceof JSONObject) {
                 
+                System.out.println("Next Iteration Sending "+ object.getString("objectType")+" | ID : "+object.getString("objectId"));
                 sendEachObject((JSONObject) value, mainObjectType, mainObjectID, key,joinName,relationMap);
                 
             } else if (value instanceof JSONArray) {
@@ -360,6 +361,8 @@ public class JsonService {
              rSet.add(thisObjectOnly.getString("objectType"));
              relationMap.put(mainObjectType, rSet);
              
+         }else{
+             thisObjectOnly.put(joinName,thisObjectOnly.get("objectType"));
          }
 
          System.out.println(thisObjectOnly.toString(6));

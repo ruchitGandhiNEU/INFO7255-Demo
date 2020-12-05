@@ -17,7 +17,7 @@ import org.springframework.context.annotation.Bean;
 @SpringBootApplication
 public class DemoApplication {
 
-    public static void main(String[] args) {
+    public static void main(String[] args) throws InterruptedException{
         SpringApplication.run(DemoApplication.class, args);
     }
 

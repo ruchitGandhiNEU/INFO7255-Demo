@@ -79,6 +79,9 @@ public class RestController extends API {
         String ETag = null;
         try {
             JSONObject jsonObject = validateSchema(body);
+            JSONObject cloneJsonObject = new JSONObject(
+                    new JSONTokener(body)
+            );
             String objType = jsonObject.getString("objectType");
             String objID = jsonObject.getString("objectId");
 
@@ -89,7 +92,7 @@ public class RestController extends API {
             String key = this.jsonService.savePlan(jsonObject, objType);
             
             Map<String, Set<String>> relationMap = new HashMap<>();
-            jsonService.sendEachObject(jsonObject, objType, objID, objType ,objType+"_join", relationMap);
+            jsonService.sendEachObject(cloneJsonObject, objType, objID, objType ,objType+"_join", relationMap);
             
             JSONObject plan = this.jsonService.getPlan(key);
             if (plan == null) {
