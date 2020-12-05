@@ -373,7 +373,9 @@ public class JsonService {
 
         // Adding Myself as a parent
         if (iHaveChild) {
-            thisObjectOnly.put(joinName, myDeclaredName);
+            JSONObject parentDeclareJson = new JSONObject();
+            parentDeclareJson.put("name", myDeclaredName);
+            thisObjectOnly.put(joinName, parentDeclareJson);
         }
 
         //USING parent's information to declare myself a child
