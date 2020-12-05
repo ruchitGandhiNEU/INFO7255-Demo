@@ -175,6 +175,18 @@ public class JsonService {
                 jedis.close();
                 return false;
             }
+            
+            String[] split = planKey.split("_");
+        Map<String, String> actionMap = new HashMap<>();
+        actionMap.put("operation", "DELETE");
+        actionMap.put("uri", ELASTIC_URL);
+        actionMap.put("index", "plan");
+        actionMap.put("body", split[1]);
+
+        System.out.println("Sending message: " + actionMap);
+
+        template.convertAndSend(DemoApplication.MESSAGE_QUEUE, actionMap);
+            
             jedis.close();
         }
 
@@ -195,6 +207,18 @@ public class JsonService {
                 //deletion failed
                 return false;
             }
+            
+            String[] split_2 = partObjKey.split("_");
+            Map<String, String> actionMap = new HashMap<>();
+            actionMap.put("operation", "DELETE");
+            actionMap.put("uri", ELASTIC_URL);
+            actionMap.put("index", "plan");
+            actionMap.put("body", split_2[1]);
+
+            System.out.println("Sending message: " + actionMap);
+
+            template.convertAndSend(DemoApplication.MESSAGE_QUEUE, actionMap);
+            
             jedis.close();
             if (partObjectDBKey == null || partObjectDBKey.isEmpty()) {
                 continue;
@@ -321,8 +345,15 @@ public class JsonService {
     
     
     
-    public void sendEachObject(JSONObject object, String mainObjectType, String mainObjectID, String thiskey, String joinName, Set<String> nameSet, String parentJoinName, String parentId) {
+    public void sendEachObject(JSONObject object, String mainObjectType, String mainObjectID, String thiskey, String joinName, Set<String> nameSet, String parentJoinName, String parentId, String operation_type) {
         
+        if(operation_type==null || operation_type.equals("SAVE")){
+            operation_type = "SAVE";
+        }else if(operation_type.equals("DELETE")){
+            System.out.println("DELETING OBJ : "+object.getString("objectType") + " | ID : " + object.getString("objectId"));
+        }else{
+        return;
+        }
         
 //        String thisJoinName = object.getString("objectType") + "_join";
         String thisObjectId = object.getString("objectId");
@@ -349,7 +380,7 @@ public class JsonService {
                 System.out.println("Next Iteration Sending " + object.getString("objectType") + " | ID : " + object.getString("objectId"));
                 Set<String> cloneNameSet = new HashSet<>();
                 cloneNameSet.addAll(nameSet);
-                sendEachObject((JSONObject) value, mainObjectType, mainObjectID, key, joinName, nameSet, joinName, thisObjectId);
+                sendEachObject((JSONObject) value, mainObjectType, mainObjectID, key, joinName, nameSet, joinName, thisObjectId,operation_type);
 
             } else if (value instanceof JSONArray) {
 
@@ -358,7 +389,7 @@ public class JsonService {
 
                     Set<String> cloneNameSet = new HashSet<>();
                     cloneNameSet.addAll(nameSet);
-                    sendEachObject((JSONObject) object1, mainObjectType, mainObjectID, key, joinName, cloneNameSet, joinName, thisObjectId);
+                    sendEachObject((JSONObject) object1, mainObjectType, mainObjectID, key, joinName, cloneNameSet, joinName, thisObjectId,operation_type);
                 }
 
             } else {
@@ -398,7 +429,7 @@ public class JsonService {
 
         // index object
         Map<String, String> actionMap = new HashMap<>();
-        actionMap.put("operation", "SAVE");
+        actionMap.put("operation", operation_type);
         actionMap.put("uri", ELASTIC_URL);
         actionMap.put("index", "plan");
         actionMap.put("body", thisObjectOnly.toString());

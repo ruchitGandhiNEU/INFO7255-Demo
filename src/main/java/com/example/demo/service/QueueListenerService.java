@@ -51,16 +51,17 @@ public class QueueListenerService {
         global_uri = uri;
         global_indexName = indexName;
 
-        JSONObject jsonBody = new JSONObject(body);
+       
 
         switch (operation) {
             case "SAVE": {
+                JSONObject jsonBody = new JSONObject(body);
                 System.out.println("SAVE OPERATION CALLED FOR "+jsonBody.getString("objectType") + " : "+ jsonBody.getString("objectId"));
                 this.indexObject(global_uri, global_indexName, jsonBody, mainObjectId);
                 break;
             }
             case "DELETE": {
-                this.deleteIndex(uri, indexName, jsonBody);
+                this.deleteIndex(uri, indexName, body);
                 break;
             }
         }
@@ -209,8 +210,8 @@ public class QueueListenerService {
         int executeRequest = this.executeRequest(request);
     }
 
-    private void deleteIndex(String uri, String indexName, JSONObject objectBody) {
-        HttpDelete request = new HttpDelete(uri + "/" + indexName + "/_doc/" + objectBody.getString("objectId"));
+    private void deleteIndex(String uri, String indexName, String objectId) {
+        HttpDelete request = new HttpDelete(uri + "/" + indexName + "/_doc/" + objectId);
 
         this.executeRequest(request);
     }
